@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { FaInstagram, FaLinkedin, FaGlobe } from 'react-icons/fa';
 
 const DEFAULT_INNER_GRADIENT = 'linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)';
@@ -90,6 +90,29 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const [avatarError, setAvatarError] = useState(false);
+
+  // Generate initials from name for fallback avatar
+  const initials = useMemo(() => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }, [name]);
+
+  // Deterministic gradient based on name
+  const fallbackGradient = useMemo(() => {
+    const colors = [
+      ['#6C63FF', '#a78bfa'],
+      ['#f59e0b', '#ef4444'],
+      ['#10b981', '#3b82f6'],
+      ['#ec4899', '#8b5cf6'],
+      ['#14b8a6', '#6366f1'],
+      ['#f97316', '#e11d48'],
+    ];
+    const idx = (name || '').charCodeAt(0) % colors.length;
+    return `linear-gradient(135deg, ${colors[idx][0]}, ${colors[idx][1]})`;
+  }, [name]);
 
   const enterTimerRef = useRef<number | null>(null);
   const leaveRafRef = useRef<number | null>(null);
@@ -456,15 +479,36 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                 borderRadius: cardRadius,
               }}
             >
-              <img
-                className="w-full h-full object-cover object-top"
-                src={avatarUrl}
-                alt={`${name || 'User'} avatar`}
-                loading="lazy"
-                onError={() => {
-                  console.warn('Avatar image error:', avatarUrl);
-                }}
-              />
+              {avatarError ? (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: fallbackGradient }}
+                >
+                  <span
+                    style={{
+                      fontSize: 'clamp(3rem, 12cqi, 6rem)',
+                      fontWeight: 700,
+                      color: 'rgba(255,255,255,0.92)',
+                      letterSpacing: '0.05em',
+                      textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {initials}
+                  </span>
+                </div>
+              ) : (
+                <img
+                  className="w-full h-full object-cover object-top"
+                  src={avatarUrl}
+                  alt={`${name || 'User'} avatar`}
+                  loading="lazy"
+                  onError={() => {
+                    console.warn('Avatar image missing:', avatarUrl);
+                    setAvatarError(true);
+                  }}
+                />
+              )}
               {/* Gradient overlay to ensure text legibility */}
               <div 
                 className="absolute inset-0 pointer-events-none"
@@ -491,13 +535,24 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                     <div
                       className="rounded-full overflow-hidden border border-primary/60 flex-shrink-0 w-7 h-7 md:w-9 md:h-9"
                     >
-                      <img
-                        className="w-full h-full object-cover rounded-full"
-                        src={miniAvatarUrl || avatarUrl}
-                        alt={`${name || 'User'} mini avatar`}
-                        loading="lazy"
-                        style={{ display: 'block', gridArea: 'auto', borderRadius: '50%', pointerEvents: 'auto' }}
-                      />
+                      {avatarError ? (
+                        <div
+                          className="w-full h-full rounded-full flex items-center justify-center"
+                          style={{ background: fallbackGradient }}
+                        >
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.92)', userSelect: 'none' }}>
+                            {initials}
+                          </span>
+                        </div>
+                      ) : (
+                        <img
+                          className="w-full h-full object-cover rounded-full"
+                          src={miniAvatarUrl || avatarUrl}
+                          alt={`${name || 'User'} mini avatar`}
+                          loading="lazy"
+                          style={{ display: 'block', gridArea: 'auto', borderRadius: '50%', pointerEvents: 'auto' }}
+                        />
+                      )}
                     </div>
                     <div className="flex flex-col items-start gap-0.5 min-w-0">
                       <div className="text-[10px] md:text-xs font-semibold text-white leading-none truncate w-full" title={`@${handle}`}>@{handle}</div>
